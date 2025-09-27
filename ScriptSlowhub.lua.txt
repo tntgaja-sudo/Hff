@@ -38,92 +38,6 @@ local Tab5 = MakeTab({Name = "sự kiện"})
 local Tab6 = MakeTab({Name = "fishing"})
 local Tab7 = MakeTab({Name = "teleport"})
 local Tab8 = MakeTab({Name = "player"})
-
--- WalkSpeed chỉnh tốc độ chạy
-AddSlider(Tab8, {
-    Name = "WalkSpeed",
-    Min = 16,
-    Max = 200,
-    Default = 16,
-    Increment = 1,
-    Callback = function(Value)
-        local char = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
-        char:WaitForChild("Humanoid").WalkSpeed = Value
-    end
-})
-
--- JumpPower chỉnh độ cao khi nhảy
-AddSlider(Tab8, {
-    Name = "JumpPower",
-    Min = 50,
-    Max = 500,
-    Default = 50,
-    Increment = 10,
-    Callback = function(Value)
-        local char = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
-        char:WaitForChild("Humanoid").JumpPower = Value
-    end
-})
-
--- HipHeight chỉnh độ cao đứng
-AddSlider(Tab8, {
-    Name = "HipHeight",
-    Min = 2,
-    Max = 100,
-    Default = 2,
-    Increment = 1,
-    Callback = function(Value)
-        local char = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
-        char:WaitForChild("Humanoid").HipHeight = Value
-    end
-})
-
--- NoClip bật tắt xuyên tường
-AddToggle(Tab8, {
-    Name = "NoClip",
-    Default = false,
-    Callback = function(State)
-        local lp = game.Players.LocalPlayer
-        getgenv().NoClip = State
-        game:GetService("RunService").Stepped:Connect(function()
-            if getgenv().NoClip and lp.Character then
-                for _,v in pairs(lp.Character:GetDescendants()) do
-                    if v:IsA("BasePart") then
-                        v.CanCollide = false
-                    end
-                end
-            end
-        end)
-    end
-})
-
--- Fly bật/tắt bay
-AddToggle(Tab8, {
-    Name = "Fly",
-    Default = false,
-    Callback = function(State)
-        local lp = game.Players.LocalPlayer
-        local hrp = lp.Character:WaitForChild("HumanoidRootPart")
-        getgenv().Flying = State
-        if State then
-            task.spawn(function()
-                while getgenv().Flying and task.wait() do
-                    hrp.Velocity = Vector3.new(0,50,0) -- bay lên
-                end
-            end)
-        end
-    end
-})
-
--- Reset Character
-AddButton(Tab8, {
-    Name = "Reset Character",
-    Callback = function()
-        local lp = game.Players.LocalPlayer
-        lp.Character:BreakJoints()
-    end
-})
-
 local Tab9 = MakeTab({Name = "devil fruit"})
 local Tab10 = MakeTab({Name = "custom"})
 local Tab11 = MakeTab({Name = "esp"})
@@ -134,3 +48,57 @@ local Tab15 = MakeTab({Name = "troll"})
 local Tab16 = MakeTab({Name = "dev tool"})
 local Tab17 = MakeTab({Name = "misc"})
 local Tab18 = MakeTab({Name = "settings"})
+-- Tab1 = main fram
+local AutoFarm = false
+
+-- Auto Farm Toggle
+AddToggle(Tab1, {
+    Name = "Auto Farm (All Levels)",
+    Default = false,
+    Callback = function(Value)
+        AutoFarm = Value
+        if AutoFarm then
+            task.spawn(function()
+                while AutoFarm do
+                    pcall(function()
+                        local player = game.Players.LocalPlayer
+                        local character = player.Character
+                        local hrp = character and character:FindFirstChild("HumanoidRootPart")
+                        local level = player.Data.Level.Value
+                        
+                        if not hrp then return end
+
+                        -- Tìm NPC nhiệm vụ đúng với level
+                        for _, questNPC in pairs(workspace.NPCs:GetChildren()) do
+                            if questNPC:FindFirstChild("LevelReq") 
+                               and level >= questNPC.LevelReq.Value 
+                               and level <= questNPC.MaxLevel.Value then
+                                -- Tele tới NPC nhận nhiệm vụ
+                                hrp.CFrame = questNPC.HumanoidRootPart.CFrame * CFrame.new(0,0,5)
+                                fireproximityprompt(questNPC.ProximityPrompt) -- Nhận nhiệm vụ
+
+                                -- Tìm quái của nhiệm vụ
+                                for _, mob in pairs(workspace.Enemies:GetChildren()) do
+                                    if mob:FindFirstChild("HumanoidRootPart") 
+                                       and mob.Name == questNPC.TargetMob.Value then
+                                        local mobHRP = mob.HumanoidRootPart
+                                        -- Tele cách quái 10 studs rồi tiến tới
+                                        hrp.CFrame = mobHRP.CFrame * CFrame.new(0,0,10)
+                                        hrp.CFrame = hrp.CFrame:Lerp(mobHRP.CFrame * CFrame.new(0,0,3), 0.2)
+                                        
+                                        -- Tấn công
+                                        if mob:FindFirstChild("Humanoid") then
+                                            mob.Humanoid.Health = 0
+                                        end
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                    task.wait(0.3)
+                end
+            end)
+        end
+    end
+})
