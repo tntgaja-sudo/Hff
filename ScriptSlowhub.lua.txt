@@ -48,7 +48,7 @@ local Tab15 = MakeTab({Name = "troll"})
 local Tab16 = MakeTab({Name = "dev tool"})
 local Tab17 = MakeTab({Name = "misc"})
 local Tab18 = MakeTab({Name = "settings"})
--- Player Tab (Tab8)
+--// PLAYER TAB (Tab8)
 
 -- WalkSpeed Slider
 AddSlider(Tab8, {
@@ -56,6 +56,7 @@ AddSlider(Tab8, {
     Min = 16,
     Max = 200,
     Default = 16,
+    Increment = 1,
     Callback = function(Value)
         game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
     end
@@ -67,80 +68,76 @@ AddSlider(Tab8, {
     Min = 50,
     Max = 500,
     Default = 50,
+    Increment = 10,
     Callback = function(Value)
         game.Players.LocalPlayer.Character.Humanoid.JumpPower = Value
     end
 })
 
--- Infinite Jump Toggle
-AddToggle(Tab8, {
-    Name = "Infinite Jump",
-    Default = false,
-    Callback = function(Value)
-        if Value then
-            local UserInputService = game:GetService("UserInputService")
-            _G.InfJump = true
-            UserInputService.JumpRequest:Connect(function()
-                if _G.InfJump then
-                    game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
-                end
-            end)
-        else
-            _G.InfJump = false
-        end
-    end
-})
-
 -- Fly Toggle
+local flying = false
+local bodyVel
 AddToggle(Tab8, {
     Name = "Fly",
     Default = false,
     Callback = function(Value)
+        flying = Value
         local player = game.Players.LocalPlayer
-        local char = player.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if not hum then return end
+        local humanoidRoot = player.Character:WaitForChild("HumanoidRootPart")
 
-        if Value then
-            _G.Fly = true
-            local bp = Instance.new("BodyPosition", char.HumanoidRootPart)
-            local bg = Instance.new("BodyGyro", char.HumanoidRootPart)
-            bp.MaxForce, bg.MaxTorque = Vector3.new(9e9,9e9,9e9), Vector3.new(9e9,9e9,9e9)
+        if flying then
+            bodyVel = Instance.new("BodyVelocity")
+            bodyVel.Velocity = Vector3.new(0,0,0)
+            bodyVel.MaxForce = Vector3.new(9e9,9e9,9e9)
+            bodyVel.Parent = humanoidRoot
 
-            spawn(function()
-                while _G.Fly and char and hum and hum.Parent do
+            task.spawn(function()
+                while flying and bodyVel do
                     task.wait()
-                    bp.Position = bp.Position + (char.HumanoidRootPart.CFrame.LookVector * 2)
+                    bodyVel.Velocity = humanoidRoot.CFrame.LookVector * 50
                 end
             end)
         else
-            _G.Fly = false
-            for _,v in pairs(char.HumanoidRootPart:GetChildren()) do
-                if v:IsA("BodyPosition") or v:IsA("BodyGyro") then
-                    v:Destroy()
-                end
-            end
+            if bodyVel then bodyVel:Destroy() end
         end
     end
 })
 
--- NoClip Toggle
+-- Noclip Toggle
+local noclipConn
 AddToggle(Tab8, {
-    Name = "NoClip",
+    Name = "Noclip",
     Default = false,
     Callback = function(Value)
-        local char = game.Players.LocalPlayer.Character
-        if not char then return end
-        _G.NoClip = Value
-
-        game:GetService("RunService").Stepped:Connect(function()
-            if _G.NoClip and char then
-                for _, v in pairs(char:GetDescendants()) do
-                    if v:IsA("BasePart") and v.CanCollide then
-                        v.CanCollide = false
+        if Value then
+            noclipConn = game:GetService("RunService").Stepped:Connect(function()
+                for _, part in pairs(game.Players.LocalPlayer.Character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
                     end
                 end
-            end
-        end)
+            end)
+        else
+            if noclipConn then noclipConn:Disconnect() end
+        end
     end
 })
+
+-- Infinite Jump Toggle
+local infJump = false
+AddToggle(Tab8, {
+    Name = "Infinite Jump",
+    Default = false,
+    Callback = function(Value)
+        infJump = Value
+    end
+})
+
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if infJump then
+        local player = game.Players.LocalPlayer
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid:ChangeState("Jumping")
+        end
+    end
+end)
