@@ -48,38 +48,99 @@ local Tab15 = MakeTab({Name = "troll"})
 local Tab16 = MakeTab({Name = "dev tool"})
 local Tab17 = MakeTab({Name = "misc"})
 local Tab18 = MakeTab({Name = "settings"})
--- Toggle
-AddToggle(Tab1, {
-    Name = "Enable Feature",
+-- Player Tab (Tab8)
+
+-- WalkSpeed Slider
+AddSlider(Tab8, {
+    Name = "WalkSpeed",
+    Min = 16,
+    Max = 200,
+    Default = 16,
+    Callback = function(Value)
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
+    end
+})
+
+-- JumpPower Slider
+AddSlider(Tab8, {
+    Name = "JumpPower",
+    Min = 50,
+    Max = 500,
+    Default = 50,
+    Callback = function(Value)
+        game.Players.LocalPlayer.Character.Humanoid.JumpPower = Value
+    end
+})
+
+-- Infinite Jump Toggle
+AddToggle(Tab8, {
+    Name = "Infinite Jump",
     Default = false,
     Callback = function(Value)
-        print("Toggle state:", Value)
+        if Value then
+            local UserInputService = game:GetService("UserInputService")
+            _G.InfJump = true
+            UserInputService.JumpRequest:Connect(function()
+                if _G.InfJump then
+                    game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+                end
+            end)
+        else
+            _G.InfJump = false
+        end
     end
 })
 
--- Button
-AddButton(Tab2, {
-    Name = "k Me",
-    Callback = function()
-        print("Button was clicked")
-    end
-})
-
--- Dropdown
-AddDropdown(Tab3, {
-    Name = "Choose Option",
-    Options = {"võ", "trái", "kiếm"},
-    Default = "Option 1",
+-- Fly Toggle
+AddToggle(Tab8, {
+    Name = "Fly",
+    Default = false,
     Callback = function(Value)
-        print("You selected:", Value)
+        local player = game.Players.LocalPlayer
+        local char = player.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if not hum then return end
+
+        if Value then
+            _G.Fly = true
+            local bp = Instance.new("BodyPosition", char.HumanoidRootPart)
+            local bg = Instance.new("BodyGyro", char.HumanoidRootPart)
+            bp.MaxForce, bg.MaxTorque = Vector3.new(9e9,9e9,9e9), Vector3.new(9e9,9e9,9e9)
+
+            spawn(function()
+                while _G.Fly and char and hum and hum.Parent do
+                    task.wait()
+                    bp.Position = bp.Position + (char.HumanoidRootPart.CFrame.LookVector * 2)
+                end
+            end)
+        else
+            _G.Fly = false
+            for _,v in pairs(char.HumanoidRootPart:GetChildren()) do
+                if v:IsA("BodyPosition") or v:IsA("BodyGyro") then
+                    v:Destroy()
+                end
+            end
+        end
     end
 })
 
--- Section
-AddSection(Tab4, {"This is a Section"})
+-- NoClip Toggle
+AddToggle(Tab8, {
+    Name = "NoClip",
+    Default = false,
+    Callback = function(Value)
+        local char = game.Players.LocalPlayer.Character
+        if not char then return end
+        _G.NoClip = Value
 
--- Paragraph
-AddParagraph(Tab5, {
-    Title = "Instructions",
-    Content = "This is just an example showing how to create basic UI elements."
+        game:GetService("RunService").Stepped:Connect(function()
+            if _G.NoClip and char then
+                for _, v in pairs(char:GetDescendants()) do
+                    if v:IsA("BasePart") and v.CanCollide then
+                        v.CanCollide = false
+                    end
+                end
+            end
+        end)
+    end
 })
