@@ -37,7 +37,6 @@ local Tab4 = MakeTab({Name = "tộc v4"})
 local Tab5 = MakeTab({Name = "sự kiện"})
 local Tab6 = MakeTab({Name = "fishing"})
 local Tab7 = MakeTab({Name = "teleport"})
--- Tab Player
 local Tab8 = MakeTab({Name = "player"})
 
 -- WalkSpeed chỉnh tốc độ chạy
@@ -48,7 +47,8 @@ AddSlider(Tab8, {
     Default = 16,
     Increment = 1,
     Callback = function(Value)
-        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
+        local char = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+        char:WaitForChild("Humanoid").WalkSpeed = Value
     end
 })
 
@@ -60,63 +60,35 @@ AddSlider(Tab8, {
     Default = 50,
     Increment = 10,
     Callback = function(Value)
-        game.Players.LocalPlayer.Character.Humanoid.JumpPower = Value
+        local char = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+        char:WaitForChild("Humanoid").JumpPower = Value
     end
 })
 
--- Fly bật/tắt
-AddToggle(Tab8, {
-    Name = "Fly",
-    Default = false,
+-- HipHeight chỉnh độ cao đứng
+AddSlider(Tab8, {
+    Name = "HipHeight",
+    Min = 2,
+    Max = 100,
+    Default = 2,
+    Increment = 1,
     Callback = function(Value)
-        local player = game.Players.LocalPlayer
-        local char = player.Character or player.CharacterAdded:Wait()
-        local hum = char:WaitForChild("Humanoid")
-
-        if Value then
-            -- Bật bay
-            hum:ChangeState(Enum.HumanoidStateType.Physics)
-            local bodyVel = Instance.new("BodyVelocity", char.HumanoidRootPart)
-            bodyVel.Velocity = Vector3.new(0,0,0)
-            bodyVel.MaxForce = Vector3.new(4000,4000,4000)
-            char.HumanoidRootPart.BodyVelocity = bodyVel
-        else
-            -- Tắt bay
-            if char.HumanoidRootPart:FindFirstChild("BodyVelocity") then
-                char.HumanoidRootPart.BodyVelocity:Destroy()
-            end
-        end
+        local char = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+        char:WaitForChild("Humanoid").HipHeight = Value
     end
 })
 
--- Infinite Jump
+-- NoClip bật tắt xuyên tường
 AddToggle(Tab8, {
-    Name = "Infinite Jump",
+    Name = "NoClip",
     Default = false,
-    Callback = function(Value)
-        _G.InfJump = Value
-        local UserInputService = game:GetService("UserInputService")
-        UserInputService.JumpRequest:Connect(function()
-            if _G.InfJump then
-                local player = game.Players.LocalPlayer
-                if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-                    player.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
-                end
-            end
-        end)
-    end
-})
-
--- Noclip
-AddToggle(Tab8, {
-    Name = "Noclip",
-    Default = false,
-    Callback = function(Value)
-        _G.Noclip = Value
+    Callback = function(State)
+        local lp = game.Players.LocalPlayer
+        getgenv().NoClip = State
         game:GetService("RunService").Stepped:Connect(function()
-            if _G.Noclip then
-                for _, v in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
-                    if v:IsA("BasePart") and v.CanCollide then
+            if getgenv().NoClip and lp.Character then
+                for _,v in pairs(lp.Character:GetDescendants()) do
+                    if v:IsA("BasePart") then
                         v.CanCollide = false
                     end
                 end
@@ -124,6 +96,34 @@ AddToggle(Tab8, {
         end)
     end
 })
+
+-- Fly bật/tắt bay
+AddToggle(Tab8, {
+    Name = "Fly",
+    Default = false,
+    Callback = function(State)
+        local lp = game.Players.LocalPlayer
+        local hrp = lp.Character:WaitForChild("HumanoidRootPart")
+        getgenv().Flying = State
+        if State then
+            task.spawn(function()
+                while getgenv().Flying and task.wait() do
+                    hrp.Velocity = Vector3.new(0,50,0) -- bay lên
+                end
+            end)
+        end
+    end
+})
+
+-- Reset Character
+AddButton(Tab8, {
+    Name = "Reset Character",
+    Callback = function()
+        local lp = game.Players.LocalPlayer
+        lp.Character:BreakJoints()
+    end
+})
+
 local Tab9 = MakeTab({Name = "devil fruit"})
 local Tab10 = MakeTab({Name = "custom"})
 local Tab11 = MakeTab({Name = "esp"})
@@ -134,96 +134,3 @@ local Tab15 = MakeTab({Name = "troll"})
 local Tab16 = MakeTab({Name = "dev tool"})
 local Tab17 = MakeTab({Name = "misc"})
 local Tab18 = MakeTab({Name = "settings"})
---// PLAYER TAB (Tab8)
-
--- WalkSpeed Slider
-AddSlider(Tab8, {
-    Name = "WalkSpeed",
-    Min = 16,
-    Max = 200,
-    Default = 16,
-    Increment = 1,
-    Callback = function(Value)
-        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
-    end
-})
-
--- JumpPower Slider
-AddSlider(Tab8, {
-    Name = "JumpPower",
-    Min = 50,
-    Max = 500,
-    Default = 50,
-    Increment = 10,
-    Callback = function(Value)
-        game.Players.LocalPlayer.Character.Humanoid.JumpPower = Value
-    end
-})
-
--- Fly Toggle
-local flying = false
-local bodyVel
-AddToggle(Tab8, {
-    Name = "Fly",
-    Default = false,
-    Callback = function(Value)
-        flying = Value
-        local player = game.Players.LocalPlayer
-        local humanoidRoot = player.Character:WaitForChild("HumanoidRootPart")
-
-        if flying then
-            bodyVel = Instance.new("BodyVelocity")
-            bodyVel.Velocity = Vector3.new(0,0,0)
-            bodyVel.MaxForce = Vector3.new(9e9,9e9,9e9)
-            bodyVel.Parent = humanoidRoot
-
-            task.spawn(function()
-                while flying and bodyVel do
-                    task.wait()
-                    bodyVel.Velocity = humanoidRoot.CFrame.LookVector * 50
-                end
-            end)
-        else
-            if bodyVel then bodyVel:Destroy() end
-        end
-    end
-})
-
--- Noclip Toggle
-local noclipConn
-AddToggle(Tab8, {
-    Name = "Noclip",
-    Default = false,
-    Callback = function(Value)
-        if Value then
-            noclipConn = game:GetService("RunService").Stepped:Connect(function()
-                for _, part in pairs(game.Players.LocalPlayer.Character:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-            end)
-        else
-            if noclipConn then noclipConn:Disconnect() end
-        end
-    end
-})
-
--- Infinite Jump Toggle
-local infJump = false
-AddToggle(Tab8, {
-    Name = "Infinite Jump",
-    Default = false,
-    Callback = function(Value)
-        infJump = Value
-    end
-})
-
-game:GetService("UserInputService").JumpRequest:Connect(function()
-    if infJump then
-        local player = game.Players.LocalPlayer
-        if player.Character and player.Character:FindFirstChild("Humanoid") then
-            player.Character.Humanoid:ChangeState("Jumping")
-        end
-    end
-end)
