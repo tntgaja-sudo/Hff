@@ -37,7 +37,6 @@ local Tab4 = MakeTab({Name = "tộc v4"})
 local Tab5 = MakeTab({Name = "sự kiện"})
 local Tab6 = MakeTab({Name = "fishing"})
 local Tab7 = MakeTab({Name = "teleport"})
-local Tab8 = MakeTab({Name = "player"})
 -- Tab Player
 local Tab8 = MakeTab({Name = "player"})
 
