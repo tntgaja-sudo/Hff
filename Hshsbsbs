@@ -1,0 +1,318 @@
+-- Remote Detector with mini UI (top-right)
+-- Paste & execute in your executor. Panel appears top-right.
+
+if _G.__MiniRemoteDetectorGUI then
+    -- toggle visibility if already exists
+    local gui = _G.__MiniRemoteDetectorGUI
+    gui.Enabled = not gui.Enabled
+    print("[MiniRemoteDetector] Toggled GUI visibility ->", gui.Enabled)
+    return
+end
+
+_G.__RemoteDetectorRunning = false
+_G.RemoteLogs = _G.RemoteLogs or {}
+
+local function safeInspect(v)
+    if typeof(v) == "Instance" then
+        local ok, full = pcall(function() return v:GetFullName() end)
+        if ok then return ("Instance(%s)"):format(full) end
+        return ("Instance(%s)"):format(v.Name or "<Instance>")
+    elseif typeof(v) == "Vector3" or typeof(v) == "CFrame" or typeof(v) == "number" or typeof(v) == "string" or typeof(v) == "boolean" then
+        return tostring(v)
+    elseif typeof(v) == "table" then
+        local ok, s = pcall(function() return tostring(v) end)
+        if ok then return s else return "<table>" end
+    else
+        local ok, s = pcall(function() return tostring(v) end)
+        if ok then return s else return "<unprintable>" end
+    end
+end
+
+-- create GUI
+local StarterGui = game:GetService("StarterGui")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MiniRemoteDetector"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+_G.__MiniRemoteDetectorGUI = screenGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "Main"
+mainFrame.AnchorPoint = Vector2.new(1, 0) -- top-right
+mainFrame.Position = UDim2.new(1, -10, 0, 10)
+mainFrame.Size = UDim2.new(0, 320, 0, 220)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20,20,25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+mainFrame.Visible = true
+mainFrame.ZIndex = 999
+
+local uiCorner = Instance.new("UICorner", mainFrame); uiCorner.CornerRadius = UDim.new(0,8)
+
+-- header
+local header = Instance.new("Frame", mainFrame)
+header.Size = UDim2.new(1, 0, 0, 28)
+header.BackgroundTransparency = 1
+
+local title = Instance.new("TextLabel", header)
+title.Size = UDim2.new(0.6, 0, 1, 0)
+title.Position = UDim2.new(0, 8, 0, 0)
+title.Text = "RemoteDetector"
+title.TextColor3 = Color3.fromRGB(220,220,220)
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 14
+title.TextXAlignment = Enum.TextXAlignment.Left
+
+local statusLabel = Instance.new("TextLabel", header)
+statusLabel.Size = UDim2.new(0.4, -8, 1, 0)
+statusLabel.Position = UDim2.new(0.6, 0, 0, 0)
+statusLabel.Text = "Stopped"
+statusLabel.TextColor3 = Color3.fromRGB(200,80,80)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Font = Enum.Font.SourceSans
+statusLabel.TextSize = 13
+statusLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+-- controls
+local btnStart = Instance.new("TextButton", mainFrame)
+btnStart.Size = UDim2.new(0, 84, 0, 26)
+btnStart.Position = UDim2.new(0, 8, 0, 34)
+btnStart.Text = "Start"
+btnStart.Font = Enum.Font.SourceSansBold
+btnStart.TextSize = 13
+btnStart.BackgroundColor3 = Color3.fromRGB(45,140,55)
+btnStart.TextColor3 = Color3.fromRGB(255,255,255)
+btnStart.AutoButtonColor = true
+local corner1 = Instance.new("UICorner", btnStart); corner1.CornerRadius = UDim.new(0,6)
+
+local btnStop = Instance.new("TextButton", mainFrame)
+btnStop.Size = UDim2.new(0, 84, 0, 26)
+btnStop.Position = UDim2.new(0, 98, 0, 34)
+btnStop.Text = "Stop"
+btnStop.Font = Enum.Font.SourceSansBold
+btnStop.TextSize = 13
+btnStop.BackgroundColor3 = Color3.fromRGB(140,45,45)
+btnStop.TextColor3 = Color3.fromRGB(255,255,255)
+local corner2 = Instance.new("UICorner", btnStop); corner2.CornerRadius = UDim.new(0,6)
+
+local btnClear = Instance.new("TextButton", mainFrame)
+btnClear.Size = UDim2.new(0, 60, 0, 26)
+btnClear.Position = UDim2.new(0, 188, 0, 34)
+btnClear.Text = "Clear"
+btnClear.Font = Enum.Font.SourceSans
+btnClear.TextSize = 13
+btnClear.BackgroundColor3 = Color3.fromRGB(80,80,80)
+btnClear.TextColor3 = Color3.fromRGB(255,255,255)
+local corner3 = Instance.new("UICorner", btnClear); corner3.CornerRadius = UDim.new(0,6)
+
+local btnCopy = Instance.new("TextButton", mainFrame)
+btnCopy.Size = UDim2.new(0, 60, 0, 26)
+btnCopy.Position = UDim2.new(0, 254, 0, 34)
+btnCopy.Text = "Copy"
+btnCopy.Font = Enum.Font.SourceSans
+btnCopy.TextSize = 13
+btnCopy.BackgroundColor3 = Color3.fromRGB(80,80,80)
+btnCopy.TextColor3 = Color3.fromRGB(255,255,255)
+local corner4 = Instance.new("UICorner", btnCopy); corner4.CornerRadius = UDim.new(0,6)
+
+-- scrolling logs area
+local logsFrame = Instance.new("ScrollingFrame", mainFrame)
+logsFrame.Name = "Logs"
+logsFrame.Position = UDim2.new(0, 8, 0, 68)
+logsFrame.Size = UDim2.new(1, -16, 1, -76)
+logsFrame.BackgroundTransparency = 1
+logsFrame.BorderSizePixel = 0
+logsFrame.CanvasSize = UDim2.new(0, 0, 1, 0)
+logsFrame.ScrollBarThickness = 6
+
+local uiList = Instance.new("UIListLayout", logsFrame)
+uiList.Padding = UDim.new(0,6)
+uiList.SortOrder = Enum.SortOrder.LastCreated
+
+-- helper to create a log label (compact)
+local function createLogLabel(index, entry)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, -10, 0, 44)
+    b.BackgroundColor3 = Color3.fromRGB(30,30,35)
+    b.TextColor3 = Color3.fromRGB(220,220,220)
+    b.AutoButtonColor = true
+    b.TextXAlignment = Enum.TextXAlignment.Left
+    b.TextYAlignment = Enum.TextYAlignment.Top
+    b.Font = Enum.Font.SourceSans
+    b.TextSize = 12
+    b.Text = string.format("[%s] %s | %s", os.date("%H:%M:%S", entry.Time), entry.Method, entry.Target)
+    local uc = Instance.new("UICorner", b); uc.CornerRadius = UDim.new(0,6)
+
+    -- expand detail on click
+    b.MouseButton1Click:Connect(function()
+        -- show details in a simple popup
+        local popup = Instance.new("Frame", screenGui)
+        popup.AnchorPoint = Vector2.new(0.5,0.5)
+        popup.Position = UDim2.new(0.5, 0, 0.5, 0)
+        popup.Size = UDim2.new(0, 520, 0, 340)
+        popup.BackgroundColor3 = Color3.fromRGB(18,18,20)
+        popup.ZIndex = 1000
+        local uc2 = Instance.new("UICorner", popup); uc2.CornerRadius = UDim.new(0,8)
+
+        local header = Instance.new("TextLabel", popup)
+        header.Size = UDim2.new(1, -12, 0, 28)
+        header.Position = UDim2.new(0, 6, 0, 6)
+        header.Text = "Remote Detail"
+        header.BackgroundTransparency = 1
+        header.TextColor3 = Color3.fromRGB(220,220,220)
+        header.Font = Enum.Font.SourceSansBold
+        header.TextSize = 16
+        header.TextXAlignment = Enum.TextXAlignment.Left
+
+        local closeBtn = Instance.new("TextButton", popup)
+        closeBtn.Size = UDim2.new(0, 60, 0, 24)
+        closeBtn.Position = UDim2.new(1, -66, 0, 6)
+        closeBtn.Text = "Close"
+        closeBtn.Font = Enum.Font.SourceSans
+        closeBtn.TextSize = 14
+        closeBtn.BackgroundColor3 = Color3.fromRGB(100,30,30)
+        closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+        local uc3 = Instance.new("UICorner", closeBtn); uc3.CornerRadius = UDim.new(0,6)
+        closeBtn.MouseButton1Click:Connect(function() popup:Destroy() end)
+
+        local detailText = Instance.new("TextBox", popup)
+        detailText.Size = UDim2.new(1, -12, 1, -48)
+        detailText.Position = UDim2.new(0, 6, 0, 40)
+        detailText.TextWrapped = true
+        detailText.TextYAlignment = Enum.TextYAlignment.Top
+        detailText.ClearTextOnFocus = false
+        detailText.MultiLine = true
+        detailText.Font = Enum.Font.Code
+        detailText.TextSize = 13
+        detailText.TextColor3 = Color3.fromRGB(200,200,200)
+        detailText.BackgroundColor3 = Color3.fromRGB(12,12,12)
+        local lines = {}
+        table.insert(lines, ("Time: %s"):format(os.date("%Y-%m-%d %H:%M:%S", entry.Time)))
+        table.insert(lines, ("Method: %s"):format(entry.Method))
+        table.insert(lines, ("Target: %s"):format(entry.Target))
+        for i,v in ipairs(entry.Args) do
+            table.insert(lines, ("Arg[%d]: %s"):format(i, v))
+        end
+        detailText.Text = table.concat(lines, "\n")
+    end)
+
+    return b
+end
+
+-- update UI from _G.RemoteLogs
+local function refreshLogsUI()
+    -- clear existing children except UIListLayout
+    for _,c in pairs(logsFrame:GetChildren()) do
+        if not c:IsA("UIListLayout") then c:Destroy() end
+    end
+
+    local maxShow = 25
+    local count = #_G.RemoteLogs
+    local start = math.max(1, count - maxShow + 1)
+    for i = start, count do
+        local entry = _G.RemoteLogs[i]
+        local label = createLogLabel(i, entry)
+        label.Parent = logsFrame
+    end
+
+    -- update canvas size
+    logsFrame.CanvasSize = UDim2.new(0, 0, 0, (#logsFrame:GetChildren()-1) * 50)
+end
+
+-- hooking namecall
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    if (method == "FireServer" or method == "InvokeServer") and _G.__RemoteDetectorRunning then
+        local args = {...}
+        local argsList = {}
+        for i=1,#args do argsList[i] = safeInspect(args[i]) end
+        local targetName = safeInspect(self)
+        local entry = {
+            Time = os.time(),
+            Method = method,
+            Target = targetName,
+            Args = argsList
+        }
+        table.insert(_G.RemoteLogs, entry)
+        -- keep logs to reasonable size
+        if #_G.RemoteLogs > 1000 then table.remove(_G.RemoteLogs, 1) end
+
+        -- print to console as well
+        print(("[%s] %s - %s"):format(os.date("%H:%M:%S", entry.Time), entry.Method, entry.Target))
+        for i,v in ipairs(entry.Args) do print((" Arg[%d]: %s"):format(i, v)) end
+
+        -- refresh UI
+        pcall(refreshLogsUI)
+    end
+
+    return oldNamecall(self, ...)
+end)
+
+-- button behaviors
+btnStart.MouseButton1Click:Connect(function()
+    _G.__RemoteDetectorRunning = true
+    statusLabel.Text = "Running"
+    statusLabel.TextColor3 = Color3.fromRGB(100,220,100)
+end)
+btnStop.MouseButton1Click:Connect(function()
+    _G.__RemoteDetectorRunning = false
+    statusLabel.Text = "Stopped"
+    statusLabel.TextColor3 = Color3.fromRGB(200,80,80)
+end)
+btnClear.MouseButton1Click:Connect(function()
+    _G.RemoteLogs = {}
+    _G.RemoteLogs = _G.RemoteLogs or {}
+    pcall(refreshLogsUI)
+end)
+btnCopy.MouseButton1Click:Connect(function()
+    local out = {}
+    for i,entry in ipairs(_G.RemoteLogs) do
+        table.insert(out, ("[%s] %s - %s"):format(os.date("%Y-%m-%d %H:%M:%S", entry.Time), entry.Method, entry.Target))
+        for j,arg in ipairs(entry.Args) do
+            table.insert(out, ("   Arg[%d]: %s"):format(j, arg))
+        end
+    end
+    local text = table.concat(out, "\n")
+    local ok,err = pcall(function() setclipboard(text) end)
+    if ok then
+        print("[RemoteDetector] Copied logs to clipboard.")
+    else
+        warn("[RemoteDetector] Could not copy to clipboard:", err)
+        -- fallback print first 30 lines
+        print(text:sub(1,2000))
+    end
+end)
+
+-- draggable
+local dragging, dragInput, dragStart, startPos
+local function update(input)
+    local delta = input.Position - dragStart
+    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+mainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if input == dragInput and dragging then update(input) end
+end)
+
+-- initial refresh
+refreshLogsUI()
+print("[RemoteDetector] Mini GUI ready. Click Start, then perform attacks/skills to capture remotes.")
