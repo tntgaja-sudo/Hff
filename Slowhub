@@ -1,0 +1,157 @@
+--// Dịch vụ
+local UserInputService = game:GetService("UserInputService")
+
+--// ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ProMenu"
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ResetOnSpawn = false
+
+--// Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 500, 0, 300)
+MainFrame.Position = UDim2.new(0.25, 0, 0.25, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+-- UI góc bo + bóng đổ
+local UICorner = Instance.new("UICorner", MainFrame)
+UICorner.CornerRadius = UDim.new(0, 12)
+
+local UIStroke = Instance.new("UIStroke", MainFrame)
+UIStroke.Color = Color3.fromRGB(100, 100, 255)
+UIStroke.Thickness = 2
+
+--// Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+local Title = Instance.new("TextLabel", TitleBar)
+Title.Size = UDim2.new(1, -60, 1, 0)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.Text = "Menu Pro 1 Triệu"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.BackgroundTransparency = 1
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Nút thu nhỏ
+local MinButton = Instance.new("TextButton", TitleBar)
+MinButton.Size = UDim2.new(0, 30, 0, 30)
+MinButton.Position = UDim2.new(1, -35, 0, 2)
+MinButton.Text = "-"
+MinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+local corner = Instance.new("UICorner", MinButton)
+corner.CornerRadius = UDim.new(0, 6)
+
+--// Tab list
+local TabList = Instance.new("Frame", MainFrame)
+TabList.Size = UDim2.new(0, 120, 1, -35)
+TabList.Position = UDim2.new(0, 0, 0, 35)
+TabList.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+
+local TabContent = Instance.new("Frame", MainFrame)
+TabContent.Size = UDim2.new(1, -120, 1, -35)
+TabContent.Position = UDim2.new(0, 120, 0, 35)
+TabContent.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+
+-- UIList cho tab
+local TabLayout = Instance.new("UIListLayout", TabList)
+TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- Hàm tạo Tab
+local function CreateTab(Name)
+    local TabButton = Instance.new("TextButton", TabList)
+    TabButton.Size = UDim2.new(1, -10, 0, 40)
+    TabButton.Text = Name
+    TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    TabButton.Font = Enum.Font.Gotham
+    TabButton.TextSize = 14
+    TabButton.AutoButtonColor = true
+    local corner = Instance.new("UICorner", TabButton)
+    corner.CornerRadius = UDim.new(0, 8)
+
+    local Page = Instance.new("ScrollingFrame", TabContent)
+    Page.Size = UDim2.new(1, -10, 1, -10)
+    Page.Position = UDim2.new(0, 5, 0, 5)
+    Page.Visible = false
+    Page.CanvasSize = UDim2.new(0, 0, 0, 600)
+    Page.ScrollBarThickness = 4
+    local UIL = Instance.new("UIListLayout", Page)
+    UIL.Padding = UDim.new(0, 6)
+
+    TabButton.MouseButton1Click:Connect(function()
+        for _, v in pairs(TabContent:GetChildren()) do
+            if v:IsA("ScrollingFrame") then
+                v.Visible = false
+            end
+        end
+        Page.Visible = true
+    end)
+
+    return Page
+end
+
+--// Ví dụ tạo tab
+local Tab1 = CreateTab("Main")
+Tab1.Visible = true
+
+-- Nút trong tab
+local Btn = Instance.new("TextButton", Tab1)
+Btn.Size = UDim2.new(0, 200, 0, 40)
+Btn.Text = "Bấm thử"
+Btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+local bc = Instance.new("UICorner", Btn)
+bc.CornerRadius = UDim.new(0, 8)
+
+Btn.MouseButton1Click:Connect(function()
+    print("Bạn đã bấm thử!")
+end)
+
+-- Toggle mẫu
+local ToggleBtn = Instance.new("TextButton", Tab1)
+ToggleBtn.Size = UDim2.new(0, 200, 0, 40)
+ToggleBtn.Text = "Tắt"
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(90, 40, 40)
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+local tc = Instance.new("UICorner", ToggleBtn)
+tc.CornerRadius = UDim.new(0, 8)
+
+local state = false
+ToggleBtn.MouseButton1Click:Connect(function()
+    state = not state
+    if state then
+        ToggleBtn.Text = "Bật"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 90, 40)
+    else
+        ToggleBtn.Text = "Tắt"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(90, 40, 40)
+    end
+end)
+
+-- Thu nhỏ
+local Minimized = false
+MinButton.MouseButton1Click:Connect(function()
+    Minimized = not Minimized
+    if Minimized then
+        TabList.Visible = false
+        TabContent.Visible = false
+        MainFrame.Size = UDim2.new(0, 200, 0, 35)
+        MinButton.Text = "+"
+    else
+        TabList.Visible = true
+        TabContent.Visible = true
+        MainFrame.Size = UDim2.new(0, 500, 0, 300)
+        MinButton.Text = "-"
+    end
+end)
