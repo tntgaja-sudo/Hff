@@ -1,0 +1,543 @@
+-- SlowHub All-in-One
+-- Intro + Key (1234) + Notification + UI Hub + sample features (Speed, Teleport)
+-- Copy paste toàn bộ file này vào executor và Execute.
+
+-- ========== CONFIG ==========
+local HUB_NAME = "SlowHub"
+local KEY_CODE = "1234" -- key để mở hub
+local THEME = {
+    Background = Color3.fromRGB(12,12,20),
+    Panel = Color3.fromRGB(18,18,28),
+    Accent = Color3.fromRGB(120, 86, 255),
+    Text = Color3.fromRGB(235,235,245),
+    MutedText = Color3.fromRGB(170,170,190),
+    Stroke = Color3.fromRGB(50,50,70)
+}
+local INTRO_LOGO_TEXT = "SLOWHUB"
+
+-- ========== SERVICES ==========
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- ========== SAFETY / GLOBAL FLAGS ==========
+if getgenv().SlowHubLoaded then
+    -- nếu đã chạy rồi thì toggle visibility
+    if getgenv().SlowHubGUI and getgenv().SlowHubGUI.MainFrame then
+        getgenv().SlowHubGUI.MainFrame.Visible = not getgenv().SlowHubGUI.MainFrame.Visible
+    end
+    return
+end
+getgenv().SlowHubLoaded = true
+
+-- Helper: safe Create
+local function Create(class, parent, props)
+    local obj = Instance.new(class)
+    if parent then obj.Parent = parent end
+    if props then
+        for k,v in pairs(props) do
+            pcall(function() obj[k] = v end)
+        end
+    end
+    return obj
+end
+
+-- Helper: Corner + Stroke
+local function MakeCorner(obj, radius)
+    radius = radius or 6
+    local c = Create("UICorner", obj)
+    c.CornerRadius = UDim.new(0, radius)
+    return c
+end
+local function MakeStroke(obj, color, thickness)
+    local s = Create("UIStroke", obj)
+    s.Color = color or THEME.Stroke
+    s.Thickness = thickness or 1
+    return s
+end
+
+-- Helper: Tween property
+local function Tween(instance, props, time, style, direction, yield)
+    style = style or Enum.EasingStyle.Quad
+    direction = direction or Enum.EasingDirection.Out
+    time = time or 0.25
+    local ti = TweenInfo.new(time, style, direction)
+    local tw = TweenService:Create(instance, ti, props)
+    tw:Play()
+    if yield then tw.Completed:Wait() end
+    return tw
+end
+
+-- ========== CREATE SCREENGUI ==========
+local screenGui = Create("ScreenGui", game.CoreGui, {Name = HUB_NAME .. "_GUI", ResetOnSpawn = false})
+-- try to remove any old copy first
+local old = game.CoreGui:FindFirstChild(HUB_NAME .. "_GUI")
+if old and old ~= screenGui then
+    pcall(function() old:Destroy() end)
+end
+
+-- ========== INTRO (Logo animation) ==========
+local introHolder = Create("Frame", screenGui, {
+    Size = UDim2.new(1,0,1,0),
+    Position = UDim2.new(0,0,0,0),
+    BackgroundTransparency = 1,
+})
+local introBg = Create("Frame", introHolder, {
+    Size = UDim2.new(1,0,1,0),
+    BackgroundColor3 = THEME.Background,
+    BackgroundTransparency = 0,
+})
+MakeCorner(introBg, 0)
+
+local logoFrame = Create("Frame", introHolder, {
+    Size = UDim2.new(0, 300, 0, 140),
+    Position = UDim2.new(0.5, 0, 0.45, 0),
+    AnchorPoint = Vector2.new(0.5,0.5),
+    BackgroundColor3 = THEME.Panel,
+})
+MakeCorner(logoFrame, 12)
+MakeStroke(logoFrame, THEME.Accent, 2)
+
+local logoText = Create("TextLabel", logoFrame, {
+    Size = UDim2.new(1, -20, 1, -20),
+    Position = UDim2.new(0,10,0,10),
+    BackgroundTransparency = 1,
+    Text = INTRO_LOGO_TEXT,
+    Font = Enum.Font.GothamBold,
+    TextSize = 40,
+    TextColor3 = THEME.Accent,
+    TextXAlignment = Enum.TextXAlignment.Center,
+    TextYAlignment = Enum.TextYAlignment.Center,
+})
+-- small caption
+local caption = Create("TextLabel", logoFrame, {
+    Size = UDim2.new(1, -20, 0, 24),
+    Position = UDim2.new(0,10,1,-34),
+    BackgroundTransparency = 1,
+    Text = "Loading SlowHub...",
+    Font = Enum.Font.Gotham,
+    TextSize = 14,
+    TextColor3 = THEME.MutedText,
+    TextXAlignment = Enum.TextXAlignment.Center,
+})
+-- animate: zoom in + rotate + fade out
+logoFrame.Rotation = -10
+logoFrame.AnchorPoint = Vector2.new(0.5,0.5)
+logoFrame.Position = UDim2.new(0.5, 0, 0.45, 0)
+logoFrame.Size = UDim2.new(0, 0, 0, 0)
+local function DoIntro()
+    Tween(logoFrame, {Size = UDim2.new(0, 320, 0, 160), Rotation = 0}, 0.45)
+    wait(0.25)
+    -- rotate a bit
+    Tween(logoFrame, {Rotation = 10}, 0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+    wait(0.35)
+    -- zoom and fade
+    Tween(logoFrame, {Rotation = 0, Size = UDim2.new(0,420,0,200)}, 0.35)
+    Tween(logoText, {TextColor3 = Color3.fromRGB(255,255,255)}, 0.35)
+    wait(0.4)
+    Tween(logoFrame, {Position = UDim2.new(0.5,0,0.4,-30), Size = UDim2.new(0, 460, 0, 220)}, 0.25)
+    wait(0.6)
+    -- fade out
+    Tween(logoFrame, {BackgroundTransparency = 1, Size = UDim2.new(0,520,0,240)}, 0.35)
+    Tween(logoText, {TextTransparency = 1}, 0.35)
+    Tween(caption, {TextTransparency = 1}, 0.35)
+    wait(0.4)
+    introHolder:Destroy()
+end
+
+-- run intro (non-blocking)
+task.spawn(function()
+    pcall(DoIntro)
+end)
+
+-- ========== KEY SYSTEM ==========
+-- build key UI (Modal)
+local keyModal = Create("Frame", screenGui, {
+    Size = UDim2.new(0, 420, 0, 220),
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    AnchorPoint = Vector2.new(0.5,0.5),
+    BackgroundColor3 = THEME.Panel,
+})
+MakeCorner(keyModal, 12)
+MakeStroke(keyModal, THEME.Accent, 2)
+
+local keyTitle = Create("TextLabel", keyModal, {
+    Size = UDim2.new(1, -30, 0, 40),
+    Position = UDim2.new(0, 15, 0, 15),
+    BackgroundTransparency = 1,
+    Text = HUB_NAME,
+    Font = Enum.Font.GothamBold,
+    TextSize = 26,
+    TextColor3 = THEME.Text,
+    TextXAlignment = Enum.TextXAlignment.Left,
+})
+local keyDesc = Create("TextLabel", keyModal, {
+    Size = UDim2.new(1, -30, 0, 40),
+    Position = UDim2.new(0, 15, 0, 55),
+    BackgroundTransparency = 1,
+    Text = "Enter key to unlock the hub",
+    Font = Enum.Font.Gotham,
+    TextSize = 16,
+    TextColor3 = THEME.MutedText,
+    TextXAlignment = Enum.TextXAlignment.Left,
+})
+local inputBox = Create("TextBox", keyModal, {
+    Size = UDim2.new(1, -30, 0, 44),
+    Position = UDim2.new(0, 15, 0, 105),
+    BackgroundColor3 = Color3.fromRGB(12,12,18),
+    Text = "",
+    ClearTextOnFocus = false,
+    PlaceholderText = "Enter key here",
+    Font = Enum.Font.Gotham,
+    TextSize = 20,
+    TextColor3 = THEME.Text,
+})
+MakeCorner(inputBox, 8)
+local btnConfirm = Create("TextButton", keyModal, {
+    Size = UDim2.new(0, 120, 0, 40),
+    Position = UDim2.new(1, -140, 0, 155),
+    BackgroundColor3 = THEME.Accent,
+    Text = "Confirm",
+    Font = Enum.Font.GothamBold,
+    TextSize = 18,
+    TextColor3 = Color3.fromRGB(255,255,255),
+})
+MakeCorner(btnConfirm, 8)
+
+local btnCancel = Create("TextButton", keyModal, {
+    Size = UDim2.new(0, 80, 0, 40),
+    Position = UDim2.new(1, -260, 0, 155),
+    BackgroundColor3 = Color3.fromRGB(70,70,80),
+    Text = "Cancel",
+    Font = Enum.Font.Gotham,
+    TextSize = 16,
+    TextColor3 = THEME.Text,
+})
+MakeCorner(btnCancel, 8)
+
+-- notification helper
+local notifFolder = Create("Frame", screenGui, {
+    Size = UDim2.new(0, 300, 1, 0),
+    Position = UDim2.new(1, -10, 0, 10),
+    AnchorPoint = Vector2.new(1,0),
+    BackgroundTransparency = 1,
+})
+local notifLayout = Create("UIListLayout", notifFolder, {Padding = UDim.new(0,10), VerticalAlignment = Enum.VerticalAlignment.Top})
+
+local function MakeNotif(title, text, timeSec)
+    timeSec = timeSec or 4
+    local nfFrame = Create("Frame", notifFolder, {
+        Size = UDim2.new(0, 300, 0, 80),
+        BackgroundColor3 = THEME.Panel,
+        Position = UDim2.new(1, 0, 0, 0),
+    })
+    MakeCorner(nfFrame, 8)
+    MakeStroke(nfFrame, THEME.Accent, 1)
+    local ttl = Create("TextLabel", nfFrame, {
+        Size = UDim2.new(1, -20, 0, 24),
+        Position = UDim2.new(0, 10, 0, 6),
+        BackgroundTransparency = 1,
+        Text = title,
+        Font = Enum.Font.GothamBold,
+        TextSize = 15,
+        TextColor3 = THEME.Text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    })
+    local body = Create("TextLabel", nfFrame, {
+        Size = UDim2.new(1, -20, 0, 40),
+        Position = UDim2.new(0, 10, 0, 30),
+        BackgroundTransparency = 1,
+        Text = text,
+        Font = Enum.Font.Gotham,
+        TextSize = 14,
+        TextColor3 = THEME.MutedText,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+    })
+    -- slide in
+    nfFrame.Position = UDim2.new(1, 320, 0, 0)
+    Tween(nfFrame, {Position = UDim2.new(1, -10, 0, nfFrame.Position.Y.Offset)}, 0.45)
+    -- auto remove
+    spawn(function()
+        wait(timeSec)
+        pcall(function()
+            Tween(nfFrame, {Position = UDim2.new(1, 320, 0, nfFrame.Position.Y.Offset)}, 0.35)
+            wait(0.35)
+            nfFrame:Destroy()
+        end)
+    end)
+end
+
+-- Key modal actions
+local function CloseKeyModal()
+    if keyModal and keyModal.Parent then
+        Tween(keyModal, {Position = UDim2.new(0.5, 0, 1.2, 0)}, 0.3)
+        wait(0.35)
+        pcall(function() keyModal:Destroy() end)
+    end
+end
+
+btnCancel.MouseButton1Click:Connect(function()
+    MakeNotif("SlowHub", "Key entry cancelled.", 3)
+    CloseKeyModal()
+end)
+
+-- check key
+local function TryKey(k)
+    if tostring(k) == tostring(KEY_CODE) then
+        MakeNotif("SlowHub", "Welcome to SlowHub 😎", 3)
+        CloseKeyModal()
+        return true
+    else
+        MakeNotif("SlowHub", "Key incorrect. Try again.", 3)
+        return false
+    end
+end
+
+btnConfirm.MouseButton1Click:Connect(function()
+    local val = inputBox.Text or ""
+    if TryKey(val) then
+        -- proceed to build main UI
+        task.spawn(function() BuildMainUI() end)
+    end
+end)
+
+inputBox.FocusLost:Connect(function(enter)
+    if enter then
+        local val = inputBox.Text or ""
+        if TryKey(val) then
+            task.spawn(function() BuildMainUI() end)
+        end
+    end
+end)
+
+-- Allow pressing Enter to confirm
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.Return or input.KeyCode == Enum.KeyCode.E then
+        local val = inputBox.Text or ""
+        if TryKey(val) then
+            task.spawn(function() BuildMainUI() end)
+        end
+    end
+end)
+
+-- ========== MAIN UI BUILD ==========
+-- We'll declare BuildMainUI as forward reference
+function BuildMainUI()
+    -- avoid building multiple times
+    if getgenv().SlowHubGUI and getgenv().SlowHubGUI.MainFrame then return end
+
+    -- main container
+    local MainFrame = Create("Frame", screenGui, {
+        Name = "SlowHubMain",
+        Size = UDim2.new(0, 560, 0, 330),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        AnchorPoint = Vector2.new(0.5,0.5),
+        BackgroundColor3 = THEME.Panel,
+    })MakeCorner(MainFrame, 12)MakeStroke(MainFrame, THEME.Accent, 2)
+
+    -- store for external toggle
+    getgenv().SlowHubGUI = getgenv().SlowHubGUI or {}
+    getgenv().SlowHubGUI.MainFrame = MainFrame
+
+    -- header
+    local Header = Create("Frame", MainFrame, {
+        Size = UDim2.new(1,0,0,40),
+        Position = UDim2.new(0,0,0,0),
+        BackgroundTransparency = 1,
+    })
+    local Title = Create("TextLabel", Header, {
+        Size = UDim2.new(1, -120, 1, 0),
+        Position = UDim2.new(0, 16, 0, 0),
+        BackgroundTransparency = 1,
+        Text = HUB_NAME .. " | " .. "v1.0",
+        Font = Enum.Font.GothamBold,
+        TextSize = 18,
+        TextColor3 = THEME.Text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    })
+    local ButtonsHolder = Create("Frame", Header, {
+        Size = UDim2.new(0, 110, 1, 0),
+        Position = UDim2.new(1, -116, 0, 0),
+        BackgroundTransparency = 1,
+    })
+    local MinBtn = Create("TextButton", ButtonsHolder, {
+        Size = UDim2.new(0, 48, 0, 28),
+        Position = UDim2.new(0, 0, 0, 6),
+        BackgroundColor3 = Color3.fromRGB(35,35,45),
+        Text = "-",
+        Font = Enum.Font.GothamBold,
+        TextSize = 18,
+        TextColor3 = THEME.Text,
+    })MakeCorner(MinBtn, 8)
+    local CloseBtn = Create("TextButton", ButtonsHolder, {
+        Size = UDim2.new(0,48,0,28),
+        Position = UDim2.new(0, 56, 0, 6),
+        BackgroundColor3 = Color3.fromRGB(35,35,45),
+        Text = "×",
+        Font = Enum.Font.GothamBold,
+        TextSize = 18,
+        TextColor3 = THEME.Text,
+    })MakeCorner(CloseBtn, 8)
+
+    -- left sidebar (tabs)
+    local Sidebar = Create("Frame", MainFrame, {
+        Size = UDim2.new(0, 160, 1, -40),
+        Position = UDim2.new(0,0,0,40),
+        BackgroundColor3 = THEME.Background,
+    })MakeCorner(Sidebar, 10)MakeStroke(Sidebar, THEME.Stroke, 1)
+    local SidebarLayout = Create("UIListLayout", Sidebar, {Padding = UDim.new(0,8) })
+    local SBPadding = Create("UIPadding", Sidebar, {
+        PaddingTop = UDim.new(0,10), PaddingLeft = UDim.new(0,10), PaddingRight = UDim.new(0,10)
+    })
+
+    -- right content area
+    local Content = Create("Frame", MainFrame, {
+        Size = UDim2.new(1, -170, 1, -40),
+        Position = UDim2.new(0,170,0,40),
+        BackgroundTransparency = 1,
+    })
+
+    -- helper for tabs
+    local pages = {}
+    local function MakeTab(name)
+        local btn = Create("TextButton", Sidebar, {
+            Size = UDim2.new(1,0,0,36),
+            BackgroundColor3 = Color3.fromRGB(28,28,36),
+            Text = name,
+            Font = Enum.Font.Gotham,
+            TextSize = 15,
+            TextColor3 = THEME.Text
+        })MakeCorner(btn, 8)MakeStroke(btn, Color3.fromRGB(50,50,80), 1)
+
+        local page = Create("ScrollingFrame", Content, {
+            Size = UDim2.new(1, -10, 1, -10),
+            Position = UDim2.new(0,5,0,5),
+            BackgroundTransparency = 1,
+            ScrollBarThickness = 4,
+            Visible = false,
+            CanvasSize = UDim2.new(0,0,0,0),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y
+        })
+        local padding = Create("UIPadding", page, {PaddingTop = UDim.new(0,8), PaddingBottom = UDim.new(0,8), PaddingLeft=UDim.new(0,8), PaddingRight=UDim.new(0,8)})
+        local layout = Create("UIListLayout", page, {Padding = UDim.new(0,8)})
+        pages[name] = page
+
+        btn.MouseButton1Click:Connect(function()
+            for _,p in pairs(pages) do p.Visible = false end
+            page.Visible = true
+        end)
+
+        return page
+    end
+
+    -- create default tabs
+    local tabMain = MakeTab("Main")
+    local tabPlayer = MakeTab("Player")
+    local tabTeleport = MakeTab("Teleport")
+    -- show main by default
+    pages["Main"].Visible = true
+
+    -- ================= sample components: Button / Toggle / Slider / TextBox =================
+    local function AddButton(parent, text, callback)
+        local btn = Create("TextButton", parent, {
+            Size = UDim2.new(1,0,0,36),
+            BackgroundColor3 = Color3.fromRGB(45,45,55),
+            Text = text,
+            Font = Enum.Font.GothamBold,
+            TextSize = 15,
+            TextColor3 = THEME.Text
+        })MakeCorner(btn, 8)MakeStroke(btn, THEME.Stroke, 1)
+        btn.MouseButton1Click:Connect(function() pcall(callback) end)
+        return btn
+    end
+
+    local function AddToggle(parent, text, default, callback)
+        local frame = Create("Frame", parent, {Size = UDim2.new(1,0,0,36), BackgroundTransparency = 1})
+        local lbl = Create("TextLabel", frame, {Size = UDim2.new(0.7,0,1,0), BackgroundTransparency=1, Text=text, Font=Enum.Font.Gotham, TextSize=15, TextColor3=THEME.Text, TextXAlignment=Enum.TextXAlignment.Left})
+        local tbtn = Create("TextButton", frame, {Size=UDim2.new(0,80,0,28), Position=UDim2.new(1,-80,0,4), BackgroundColor3 = default and THEME.Accent or Color3.fromRGB(60,60,70), Text = default and "ON" or "OFF", Font=Enum.Font.GothamBold, TextColor3 = Color3.fromRGB(255,255,255)})
+        MakeCorner(tbtn, 8)MakeStroke(tbtn, THEME.Stroke, 1)
+        local state = default
+        tbtn.MouseButton1Click:Connect(function()
+            state = not state
+            tbtn.BackgroundColor3 = state and THEME.Accent or Color3.fromRGB(60,60,70)
+            tbtn.Text = state and "ON" or "OFF"
+            pcall(callback, state)
+        end)
+        return frame, function() return state end
+    end
+
+    local function AddSlider(parent, labelText, min, max, default, callback)
+        local frame = Create("Frame", parent, {Size = UDim2.new(1,0,0,56), BackgroundTransparency = 1})
+        local lbl = Create("TextLabel", frame, {Size=UDim2.new(1,0,0,20), BackgroundTransparency=1, Text=labelText.." : "..tostring(default), Font=Enum.Font.Gotham, TextSize=14, TextColor3=THEME.Text, TextXAlignment=Enum.TextXAlignment.Left})
+        local bar = Create("Frame", frame, {Size = UDim2.new(1,0,0,22), Position = UDim2.new(0,0,0,28), BackgroundColor3 = Color3.fromRGB(38,38,46)})
+        MakeCorner(bar, 6)
+        local fill = Create("Frame", bar, {Size = UDim2.new((default-min)/(max-min), 0, 1, 0), BackgroundColor3 = THEME.Accent})
+        MakeCorner(fill, 6)
+        local dragging = false
+        bar.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+            end
+        end)
+        bar.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+            end
+        end)
+        RunService.RenderStepped:Connect(function()
+            if dragging and bar.Parent and bar.AbsoluteSize.X > 0 then
+                local mouseX = UserInputService:GetMouseLocation().X
+                local rel = (mouseX - bar.AbsolutePosition.X) / bar.AbsoluteSize.X
+                rel = math.clamp(rel, 0, 1)
+                fill.Size = UDim2.new(rel, 0, 1, 0)
+                local value = math.floor(min + rel*(max-min))
+                lbl.Text = labelText.." : "..tostring(value)
+                pcall(callback, value)
+            end
+        end)
+        return frame
+    end
+
+    local function AddTextbox(parent, placeholder, callback)
+        local frame = Create("Frame", parent, {Size = UDim2.new(1,0,0,46), BackgroundTransparency = 1})
+        local box = Create("TextBox", frame, {Size = UDim2.new(1,0,0,36), BackgroundColor3 = Color3.fromRGB(20,20,26), Text = "", PlaceholderText = placeholder, Font = Enum.Font.Gotham, TextSize = 16, TextColor3 = THEME.Text, ClearTextOnFocus = false})
+        MakeCorner(box, 8)
+        local btn = Create("TextButton", frame, {Size = UDim2.new(0,120,0,36), Position = UDim2.new(1,-120,0,0), Text = "Go", BackgroundColor3 = THEME.Accent, Font = Enum.Font.GothamBold, TextColor3 = Color3.fromRGB(255,255,255)})
+        MakeCorner(btn, 8)
+        btn.MouseButton1Click:Connect(function()
+            pcall(callback, box.Text)
+        end)
+        box.FocusLost:Connect(function(enter)
+            if enter then pcall(callback, box.Text) end
+        end)
+        return frame
+    end
+
+    -- ================= sample features =================
+    -- Speed toggle + slider (Player tab)
+    local speedToggleFrame, getSpeedState = AddToggle(tabPlayer, "Enable Speed", false, function(state)
+        -- toggle handler (state = true/false)
+    end)
+    tabPlayer:AddChild = tabPlayer.AddChild or function() end -- just to avoid errors in some environments
+    tabPlayer:AddChild(speedToggleFrame)
+
+    local speedSlider = AddSlider(tabPlayer, "WalkSpeed", 16, 300, 16, function(val)
+        if getSpeedState and getSpeedState() then
+            local ch = LocalPlayer.Character
+            if ch and ch:FindFirstChildOfClass("Humanoid") then
+                ch:FindFirstChildOfClass("Humanoid").WalkSpeed = val
+            end
+        end
+    end)
+
+    -- Teleport textbox (Teleport tab)
+    local tpBox = AddTextbox(tabTeleport, "player name", function(text)
+        if not text or text == "" then MakeNotif("SlowHub","Enter a player name",2); return end
+        local target = Players:FindFirstChild(text)
+        if target and target.Character and target.C
